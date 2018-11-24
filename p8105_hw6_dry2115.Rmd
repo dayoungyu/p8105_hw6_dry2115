@@ -41,6 +41,7 @@ homicide_df =
 ```
 
 
+glm for baltimore
 
 ```{r}
 baltimore_df = homicide_df %>%
@@ -59,6 +60,35 @@ baltimore_glm %>%
   filter(term == "victim_racewhite") %>%
   mutate(term = str_replace(term, "white", ": White")) %>%
   knitr::kable(digits = 3)
+
+```
+
+
+glm for each city
+
+```{r}
+city_glm = homicide_df %>%
+  mutate(resolved = as.numeric(resolution == "resolved")) %>%
+  group_by(city_state) %>%
+  nest() %>%
+  mutate(models = map(data, ~glm(resolved ~ victim_age + victim_sex + victim_race, data = ., family = binomial())),
+         models = map(models, broom::tidy)) %>%
+  select(-data) %>%
+  unnest()
+
+city_glm %>%
+  select(city_state, term, estimate) %>%
+  mutate(term = fct_inorder(term)) %>%
+  spread(key = term, value = estimate) %>%
+  mutate(race_OR = exp(victim_racewhite)) %>%
+  select(city_state, race_OR) %>%
+  knitr::kable(digits = 3)
+
+```
+
+plot of ORs and CIs for each city
+
+```{r}
 
 ```
 
