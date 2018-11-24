@@ -55,6 +55,10 @@ baltimore_glm %>%
   broom::tidy() %>%
   mutate(OR = exp(estimate)) %>%
          #(CI = confint(baltimore_glm))
+
+  filter(term == "victim_racewhite") %>%
+  mutate(term = str_replace(term, "white", ": White")) %>%
   knitr::kable(digits = 3)
+
 ```
 
