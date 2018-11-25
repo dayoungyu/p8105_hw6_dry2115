@@ -92,3 +92,45 @@ plot of ORs and CIs for each city
 
 ```
 
+
+### Problem 2
+
+Read and clean data
+```{r}
+birthweight_df = 
+  read_csv("data/birthweight.csv") %>%
+  mutate(babysex = as.factor(babysex),
+         frace = as.factor(frace),
+         malform = as.factor(malform),
+         mrace = as.factor(mrace))
+
+
+```
+
+Variables _babysex_, _frace_, _malform_, and _mrace_ were converted from integer to factor type. 
+
+
+check for missing values
+```{r}
+skimr::skim(birthweight_df) 
+```
+no missing values
+
+
+Create model for birth weight:
+Predictors were chosen based on results of a study identifying significant risk factors for low birth weight. The study can be found here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4456878/
+```{r}
+birthweight_lm = lm(bwt ~ delwt + momage + gaweeks, data = birthweight_df)
+  
+birthweight_lm %>% broom::tidy()
+
+birthweight_df %>%
+  modelr::add_residuals(birthweight_lm) %>%
+  modelr::add_predictions(birthweight_lm) %>%
+  ggplot(aes(x = resid, y = pred)) +
+  geom_point()
+
+
+```
+
+
