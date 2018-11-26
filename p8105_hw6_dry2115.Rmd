@@ -23,7 +23,7 @@ theme_set(theme_bw() + theme(legend.position = "bottom"))
 
 ### Problem 1
 
-Read in and clean _Washington Post_ homicide data.
+Read in and clean _Washington Post_ homicide data:
 
 ```{r}
 homicide_df = 
@@ -42,8 +42,10 @@ homicide_df =
   filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")))
 ```
 
+The data set homicide_df contains gathered homicide data in 50 large U.S. cities, e.g., victim name and demographics, location, and disposition (whether case was closed and whether there was an arrest). The following changes were made: a new "city, state" variable was created, a new "resolution" variable was created defining whether the case was resolved or unresolved, and the "victim_race" was categorized as white or non-white. In addition, some cities were omitted due to missing data and error.
 
-glm for baltimore
+
+Logic regression for Baltimore homicides:
 
 ```{r}
 baltimore_df = homicide_df %>%
@@ -54,19 +56,29 @@ baltimore_df = homicide_df %>%
 baltimore_glm = baltimore_df %>%
   glm(resolved ~ victim_age + victim_sex + victim_race, data = ., family = binomial())
 
-baltimore_glm %>% 
+or_baltimore = baltimore_glm %>%
   broom::tidy() %>%
   mutate(OR = exp(estimate)) %>%
-         #(CI = confint(baltimore_glm))
+  select(term, log_OR = estimate, OR)
 
+ci_baltimore = as.tibble(confint(baltimore_glm)) %>%
+  janitor::clean_names() %>%
+  select(ci_low = x2_5_percent, ci_high = x97_5_percent) %>%
+  mutate(ci_low = exp(ci_low),
+         ci_high = exp(ci_high))
+
+
+cbind(or_baltimore, ci_baltimore) %>%
   filter(term == "victim_racewhite") %>%
   mutate(term = str_replace(term, "white", ": White")) %>%
   knitr::kable(digits = 3)
 
 ```
 
+The table above shows the adjusted odds ratio and 95% confidence interval for solving homicides of whites vs. non-whites. Homicide cases of white victims have 2.27 times the odds of being resolved compared to homicide cases of non-white victims in the city of Baltimore.
 
-glm for each city
+
+Logic regression by city:
 
 ```{r}
 city_glm = homicide_df %>%
@@ -76,15 +88,13 @@ city_glm = homicide_df %>%
   mutate(models = map(data, ~glm(resolved ~ victim_age + victim_sex + victim_race, data = ., family = binomial())),
          models = map(models, broom::tidy)) %>%
   select(-data) %>%
-  unnest()
-
-city_glm %>%
-  select(city_state, term, estimate) %>%
-  mutate(term = fct_inorder(term)) %>%
-  spread(key = term, value = estimate) %>%
-  mutate(race_OR = exp(victim_racewhite)) %>%
-  select(city_state, race_OR) %>%
-  knitr::kable(digits = 3)
+  unnest() %>%
+  filter(term == "victim_racewhite") %>%
+  mutate(OR = exp(estimate),
+         ci_low = exp(estimate - 1.96*std.error),
+         ci_high = exp(estimate + 1.96*std.error)) %>%
+  select(city_state, term, log_OR = estimate, OR, ci_low, ci_high)
+  
 
 ```
 
@@ -92,12 +102,26 @@ plot of ORs and CIs for each city
 
 ```{r}
 
+city_glm %>%
+  mutate(city_state = fct_reorder(city_state, OR)) %>%
+  ggplot(aes(x = city_state, y = OR)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high)) +
+   theme(axis.text.x = element_text(angle = 80, hjust = 1)) +
+  labs(
+    title = "Odds ratios for solving homicides in white vs. non-white victims",
+    x = "City, State",
+    y = "Estimated odds ratio"
+  )
+
+
 ```
 
+The plot above shows odds ratios and their confidence levels for solving homicides for white vs. non-white victims in 50 major U.S. cities. We can see that all odss ratios and confidence intervals are above zero, meaning that white victims have better odds of having a resolved case than non-white victims in all 50 major cities. The difference in odds between white and non-white victims is highest in Boston, but the confidence interval is also the widest meaning there is greater variance. 
 
 ### Problem 2
 
-Read and clean data
+Read and clean data:
 ```{r}
 birthweight_df = 
   read_csv("data/birthweight.csv") %>%
@@ -112,11 +136,11 @@ birthweight_df =
 Variables _babysex_, _frace_, _malform_, and _mrace_ were converted from integer to factor type. 
 
 
-check for missing values
+Check for missing values:
 ```{r}
 skimr::skim(birthweight_df) 
 ```
-no missing values
+The data set had no missing values
 
 
 Create model for birth weight:
@@ -130,7 +154,7 @@ birthweight_df %>%
   modelr::add_residuals(birthweight_lm) %>%
   modelr::add_predictions(birthweight_lm) %>%
   ggplot(aes(x = resid, y = pred)) +
-  geom_point()
+  geom_point() 
 
 
 ```
