@@ -1,5 +1,5 @@
 ---
-title: "p8105_hw5_dry2115"
+title: "p8105_hw6_dry2115"
 author: "Dayoung Yu"
 date: '`r format(Sys.time(), "%Y-%m-%d")`'
 output: github_document
